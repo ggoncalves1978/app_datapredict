@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDataStore } from '../store/useDataStore';
 import { Activity, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
-import axios from 'axios';
+import api from '../api';
 
 const CS: React.CSSProperties = { background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px' };
 const M: React.CSSProperties = { color: 'var(--text-muted)' };
@@ -17,7 +17,7 @@ export const Stationarity = () => {
       if (dataset.length > 0 && !stationarity && !loadingAdf) {
         setLoadingAdf(true); setError(null);
         try {
-          const res = await axios.post('http://localhost:8000/api/stationarity', { dataset });
+          const res = await api.post('/api/stationarity', { dataset });
           if (res.data.error) setError(res.data.error);
           else setStationarity(res.data);
         } catch (err: any) { setError(err.message || 'Erro'); }

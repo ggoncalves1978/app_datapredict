@@ -3,7 +3,7 @@ import { FileDropzone } from '../components/upload/FileDropzone';
 import { useDataStore } from '../store/useDataStore';
 import { Activity, Database, TrendingUp, TrendingDown, BarChart3, Hash } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import axios from 'axios';
+import api from '../api';
 
 const StatCard: React.FC<{
     label: string;
@@ -43,7 +43,7 @@ export const Dashboard: React.FC = () => {
     useEffect(() => {
         if (dataset.length > 0 && !stats && !loadingStats) {
             setLoadingStats(true);
-            axios.post('http://localhost:8000/api/stats', { dataset: dataset.map(d => ({ ...d, codigo: String(d.codigo) })) })
+            api.post('/api/stats', { dataset: dataset.map(d => ({ ...d, codigo: String(d.codigo) })) })
                 .then(res => setStats(res.data))
                 .catch(() => setStats({ count: dataset.length, mean: 'N/A', std: 'N/A', min: 'N/A', max: 'N/A' }))
                 .finally(() => setLoadingStats(false));

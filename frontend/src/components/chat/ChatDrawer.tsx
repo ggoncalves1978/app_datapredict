@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, Loader2, MessageSquare, Sparkles } from 'lucide-react';
-import axios from 'axios';
+import api from '../../api';
 import { useDataStore } from '../../store/useDataStore';
 
 interface Message {
@@ -92,7 +92,7 @@ export const ChatDrawer: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const res = await axios.post('http://localhost:8000/api/chat', {
+            const res = await api.post('/api/chat', {
                 messages: newMessages,
                 context: buildContext(),
             });

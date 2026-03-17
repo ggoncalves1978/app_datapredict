@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDataStore } from '../store/useDataStore';
 import { Activity, AlertCircle, PlayCircle, Trophy, Medal, Award, TrendingUp, Settings2, ChevronRight } from 'lucide-react';
 import { ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
-import axios from 'axios';
+import api from '../api';
 
 const MEDALS = [
     { icon: Trophy, accent: '#facc15', bg: 'rgba(250,204,21,0.08)', border: 'rgba(250,204,21,0.2)', label: '🥇 1° Lugar' },
@@ -28,7 +28,7 @@ export const Forecast = () => {
     const handleRun = async () => {
         setLoading(true); setError(null); setForecast(null);
         try {
-            const res = await axios.post('http://localhost:8000/api/forecast', {
+            const res = await api.post('/api/forecast', {
                 dataset, horizon, test_size: testSize,
                 arima_p: arimaP, arima_d: arimaD, arima_q: arimaQ
             });

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDataStore } from '../store/useDataStore';
 import { Activity, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Cell } from 'recharts';
-import axios from 'axios';
+import api from '../api';
 
 export const Correlations = () => {
     const { dataset, correlogram, normality, setCorrelogram, setNormality } = useDataStore();
@@ -18,8 +18,8 @@ export const Correlations = () => {
                 setLoading(true); setError(null);
                 try {
                     const [resCorr, resNorm] = await Promise.all([
-                        axios.post('http://localhost:8000/api/correlogram', { dataset, nlags: 40 }),
-                        axios.post('http://localhost:8000/api/normality', { dataset })
+                        api.post('/api/correlogram', { dataset, nlags: 40 }),
+                        api.post('/api/normality', { dataset })
                     ]);
                     if (resCorr.data.error) throw new Error(resCorr.data.error);
                     if (resNorm.data.error) throw new Error(resNorm.data.error);

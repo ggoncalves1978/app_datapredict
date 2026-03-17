@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDataStore } from '../store/useDataStore';
 import { Activity, AlertCircle } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import axios from 'axios';
+import api from '../api';
 
 export const TrendSeasonality = () => {
     const { dataset, decomposition, setDecomposition } = useDataStore();
@@ -14,7 +14,7 @@ export const TrendSeasonality = () => {
             if (dataset.length > 0 && !decomposition && !loading) {
                 setLoading(true); setError(null);
                 try {
-                    const res = await axios.post('http://localhost:8000/api/decomposition', { dataset, period: 12 });
+                    const res = await api.post('/api/decomposition', { dataset, period: 12 });
                     if (res.data.error) setError(res.data.error);
                     else setDecomposition(res.data);
                 } catch (err: any) { setError(err.message || 'Erro'); }
