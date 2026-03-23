@@ -118,10 +118,33 @@ export const Dashboard: React.FC = () => {
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                                    <XAxis dataKey="periodo" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickMargin={10} minTickGap={40} axisLine={false} tickLine={false} />
+                                    <XAxis 
+                                        dataKey="periodo" 
+                                        tick={{ fill: 'var(--text-muted)', fontSize: 11 }} 
+                                        tickMargin={10} 
+                                        minTickGap={40} 
+                                        axisLine={false} 
+                                        tickLine={false}
+                                        tickFormatter={v => {
+                                            if (!v || typeof v !== 'string') return v;
+                                            const parts = v.split('-');
+                                            if (parts.length === 3) return `${parts[2]}/${parts[1]}`; // DD/MM (simplificado)
+                                            if (parts.length === 2) return `${parts[1]}/${parts[0]}`; // MM/YYYY
+                                            return v;
+                                        }}
+                                    />
                                     <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false}
                                         tickFormatter={v => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v)} />
-                                    <Tooltip contentStyle={{ background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: '12px', color: 'var(--text-primary)', fontSize: '12px' }} />
+                                    <Tooltip 
+                                        labelFormatter={v => {
+                                            if (!v || typeof v !== 'string') return v;
+                                            const parts = v.split('-');
+                                            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                                            if (parts.length === 2) return `${parts[1]}/${parts[0]}`;
+                                            return v;
+                                        }}
+                                        contentStyle={{ background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: '12px', color: 'var(--text-primary)', fontSize: '12px' }} 
+                                    />
                                     <Area type="monotone" dataKey="valor" name="Valor" stroke="#7c3aed" strokeWidth={2} fill="url(#grad-primary)" dot={false} activeDot={{ r: 5, fill: '#7c3aed', strokeWidth: 2, stroke: 'white' }} />
                                 </AreaChart>
                             </ResponsiveContainer>

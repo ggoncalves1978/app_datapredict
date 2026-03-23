@@ -250,12 +250,12 @@ def _bias(actual: np.ndarray, predicted: np.ndarray) -> float:
 def _train_arima(train: np.ndarray, test: np.ndarray, horizon: int, p: int=1, d: int=1, q: int=1):
     """Treina ARIMA(p,d,q) como baseline robusto."""
     try:
-        model = StatsARIMA(train, order=(p, d, q)).fit(disp=False)
+        model = StatsARIMA(train, order=(p, d, q)).fit()
         preds = model.forecast(steps=len(test))
         mape = _mape(test, preds)
         bias = _bias(test, preds)
         # Forecast final (retreina em toda a série)
-        full_model = StatsARIMA(np.concatenate([train, test]), order=(p, d, q)).fit(disp=False)
+        full_model = StatsARIMA(np.concatenate([train, test]), order=(p, d, q)).fit()
         fc_result = full_model.get_forecast(steps=horizon)
         forecast = fc_result.predicted_mean.tolist()
         conf = fc_result.conf_int(alpha=0.2)
@@ -291,81 +291,88 @@ def _train_holtwinters(train: np.ndarray, test: np.ndarray, horizon: int):
 
 def _train_xgboost(train: np.ndarray, test: np.ndarray, horizon: int, n_lags: int):
     """Treina XGBoost com features de n_lags defasagens."""
-    import xgboost as xgb
-    X_train, y_train = _make_lag_features(train, n_lags)
-    # Se n_lags for 0 (séria muito curta), isso quebra, então tem exceção antes, ok.
-    model = xgb.XGBRegressor(n_estimators=100, max_depth=3, learning_rate=0.05,
-                              subsample=0.8, random_state=42, verbosity=0)
-    model.fit(X_train, y_train)
+    try:
+        import xgboost as xgb
+        X_train, y_train = _make_lag_features(train, n_lags)
+        model = xgb.XGBRegressor(n_estimators=100, max_depth=3, learning_rate=0.05,
+                                  subsample=0.8, random_state=42, verbosity=0)
+        model.fit(X_train, y_train)
 
-    # Avalia no teste (one-step ahead)
-    full_ts = np.concatenate([train, test])
-    test_preds = []
-    window = list(train)
-    for _ in range(len(test)):
-        feats = np.array(window[-n_lags:]).reshape(1, -1)
-        pred = float(model.predict(feats)[0])
-        test_preds.append(pred)
-        window.append(test[len(test_preds) - 1])  # usa valor real para próximo passo
-    mape = _mape(test, np.array(test_preds))
-    bias = _bias(test, np.array(test_preds))
+        # Avalia no teste (one-step ahead)
+        full_ts = np.concatenate([train, test])
+        test_preds = []
+        window = list(train)
+        for _ in range(len(test)):
+            feats = np.array(window[-n_lags:]).reshape(1, -1)
+            pred = float(model.predict(feats)[0])
+            test_preds.append(pred)
+            window.append(test[len(test_preds) - 1])  # usa valor real para próximo passo
+        mape = _mape(test, np.array(test_preds))
+        bias = _bias(test, np.array(test_preds))
 
-    # Forecast futuro (iterativo, sem valores reais)
-    window = list(full_ts)
-    forecast = []
-    X_all, y_all = _make_lag_features(full_ts, n_lags)
-    model.fit(X_all, y_all)  # retreina em toda série
-    fitted = model.predict(X_all)
-    residuals = y_all - fitted
-    resid_std = float(np.std(residuals))
+        # Forecast futuro (iterativo, sem valores reais)
+        window = list(full_ts)
+        forecast = []
+        X_all, y_all = _make_lag_features(full_ts, n_lags)
+        model.fit(X_all, y_all)  # retreina em toda série
+        fitted = model.predict(X_all)
+        residuals = y_all - fitted
+        resid_std = float(np.std(residuals))
 
-    for _ in range(horizon):
-        feats = np.array(window[-n_lags:]).reshape(1, -1)
-        pred = float(model.predict(feats)[0])
-        forecast.append(pred)
-        window.append(pred)
+        for _ in range(horizon):
+            feats = np.array(window[-n_lags:]).reshape(1, -1)
+            pred = float(model.predict(feats)[0])
+            forecast.append(pred)
+            window.append(pred)
 
-    lower = [f - 1.96 * resid_std for f in forecast]
-    upper = [f + 1.96 * resid_std for f in forecast]
-    return mape, bias, forecast, lower, upper
+        lower = [f - 1.96 * resid_std for f in forecast]
+        upper = [f + 1.96 * resid_std for f in forecast]
+        return mape, bias, forecast, lower, upper
+    except Exception as e:
+        print(f"Erro no XGBoost: {str(e)}")
+        return float('inf'), float('nan'), [], [], []
 
 def _train_lightgbm(train: np.ndarray, test: np.ndarray, horizon: int, n_lags: int):
     """Treina LightGBM com features de n_lags defasagens."""
-    import lightgbm as lgb
-    X_train, y_train = _make_lag_features(train, n_lags)
-    model = lgb.LGBMRegressor(n_estimators=100, max_depth=3, learning_rate=0.05,
-                               subsample=0.8, random_state=42, verbose=-1)
-    model.fit(X_train, y_train)
+    try:
+        import lightgbm as lgb
+        X_train, y_train = _make_lag_features(train, n_lags)
+        model = lgb.LGBMRegressor(n_estimators=100, max_depth=3, learning_rate=0.05,
+                                   subsample=0.8, random_state=42, verbose=-1, importance_type='split')
+        model.fit(X_train, y_train)
 
-    # Avalia no teste (one-step ahead com valores reais)
-    test_preds = []
-    window = list(train)
-    for i in range(len(test)):
-        feats = np.array(window[-n_lags:]).reshape(1, -1)
-        pred = float(model.predict(feats)[0])
-        test_preds.append(pred)
-        window.append(test[i])
-    mape = _mape(test, np.array(test_preds))
-    bias = _bias(test, np.array(test_preds))
+        # Avalia no teste (one-step ahead com valores reais)
+        test_preds = []
+        window = list(train)
+        for i in range(len(test)):
+            feats = np.array(window[-n_lags:]).reshape(1, -1)
+            pred = float(model.predict(feats)[0])
+            test_preds.append(pred)
+            window.append(test[i])
+        mape = _mape(test, np.array(test_preds))
+        bias = _bias(test, np.array(test_preds))
 
-    # Forecast futuro iterativo
-    full_ts = np.concatenate([train, test])
-    X_all, y_all = _make_lag_features(full_ts, n_lags)
-    model.fit(X_all, y_all)
-    fitted = model.predict(X_all)
-    resid_std = float(np.std(y_all - fitted))
+        # Forecast futuro iterativo
+        full_ts = np.concatenate([train, test])
+        X_all, y_all = _make_lag_features(full_ts, n_lags)
+        model.fit(X_all, y_all)
+        fitted = model.predict(X_all)
+        resid_std = float(np.std(y_all - fitted))
 
-    window = list(full_ts)
-    forecast = []
-    for _ in range(horizon):
-        feats = np.array(window[-n_lags:]).reshape(1, -1)
-        pred = float(model.predict(feats)[0])
-        forecast.append(pred)
-        window.append(pred)
+        window = list(full_ts)
+        forecast = []
+        for _ in range(horizon):
+            feats = np.array(window[-n_lags:]).reshape(1, -1)
+            pred = float(model.predict(feats)[0])
+            forecast.append(pred)
+            window.append(pred)
 
-    lower = [f - 1.96 * resid_std for f in forecast]
-    upper = [f + 1.96 * resid_std for f in forecast]
-    return mape, bias, forecast, lower, upper
+        lower = [f - 1.96 * resid_std for f in forecast]
+        upper = [f + 1.96 * resid_std for f in forecast]
+        return mape, bias, forecast, lower, upper
+    except Exception as e:
+        print(f"Erro no LightGBM: {str(e)}")
+        return float('inf'), float('nan'), [], [], []
 
 def _generate_future_periods(last_period: str, horizon: int) -> list:
     """Tenta gerar labels de período futuro a partir do último período."""
@@ -382,15 +389,21 @@ def _generate_future_periods(last_period: str, horizon: int) -> list:
     except Exception:
         # Fallback: T+1, T+2, ...
         return [f"T+{i}" for i in range(1, horizon + 1)]
-
 @app.post("/api/forecast")
 def run_forecast(request: ForecastRequest):
     data = [item.dict() for item in request.dataset]
     df = pd.DataFrame(data)
 
+    if df.empty:
+        return {"error": "Dataset vazio."}
+
+    # Limpeza e Conversão de Dados
+    df['valor'] = pd.to_numeric(df['valor'], errors='coerce')
+    df = df.dropna(subset=['valor'])
+    
     min_required = request.test_size + 13  # test_size + pelo menos 13 pontos de treino para lags
     if len(df) < min_required:
-        return {"error": f"Série muito curta para forecast. Necessário no mínimo {min_required} observações (test_size={request.test_size} + 13 de treino)."}
+        return {"error": f"Série muito curta após limpeza de dados para forecast. Necessário no mínimo {min_required} observações válidas."}
 
     values = df['valor'].values.astype(float)
     n_lags = min(12, len(values) // 4)  # lags adaptativos

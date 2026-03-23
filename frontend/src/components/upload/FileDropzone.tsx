@@ -17,12 +17,27 @@ export const FileDropzone: React.FC<{ isSecondary?: boolean }> = ({ isSecondary 
         const hasValor = headers.some(h => h.includes('valor') || h.includes('venda') || h.includes('qtd'));
         if (!(hasPeriodo && hasValor)) { setErrorItem('Arquivo deve conter colunas "Período" e "Valor".'); return; }
         const mapH = (kws: string[]) => Object.keys(data[0]).find(k => kws.some(kw => k.trim().toLowerCase().includes(kw))) || '';
-        const mappedData: TimeSeriesDataPoint[] = data.map(row => ({
-            codigo: row[mapH(['cod', 'código'])] || 'N/A',
-            descricao: row[mapH(['desc', 'nome'])] || 'N/A',
-            periodo: String(row[mapH(['período', 'periodo', 'data'])]),
-            valor: parseFloat(String(row[mapH(['valor', 'venda', 'qtd', 'quantidade'])]).replace(',', '.')) || 0
-        })).filter(r => r.periodo && !isNaN(r.valor));
+        const mappedData: TimeSeriesDataPoint[] = data.map(row => {
+            const rawPeriodo = row[mapH(['período', 'periodo', 'data'])];
+            let periodoValue = String(rawPeriodo);
+            
+            // Tratamento especial para números que são datas do Excel (ex: 44317) ou objetos Date
+            if (rawPeriodo instanceof Date) {
+                periodoValue = rawPeriodo.toISOString().split('T')[0];
+            } else if (!isNaN(Number(rawPeriodo)) && Number(rawPeriodo) > 30000 && Number(rawPeriodo) < 60000) {
+                const date = new Date((Number(rawPeriodo) - 25569) * 86400 * 1000);
+                periodoValue = date.toISOString().split('T')[0];
+            } else if (String(rawPeriodo).includes('T')) {
+                 periodoValue = String(rawPeriodo).split('T')[0];
+            }
+
+            return {
+                codigo: row[mapH(['cod', 'código'])] || 'N/A',
+                descricao: row[mapH(['desc', 'nome'])] || 'N/A',
+                periodo: periodoValue,
+                valor: parseFloat(String(row[mapH(['valor', 'venda', 'qtd', 'quantidade'])]).replace(',', '.')) || 0
+            };
+        }).filter(r => r.periodo && !isNaN(r.valor));
         if (isSecondary) setSecondaryDataset(mappedData, fileName);
         else setDataset(mappedData, fileName);
         setErrorItem(null);
@@ -42,7 +57,7 @@ export const FileDropzone: React.FC<{ isSecondary?: boolean }> = ({ isSecondary 
             const reader = new FileReader();
             reader.onload = e => {
                 try {
-                    const wb = xlsx.read(new Uint8Array(e.target?.result as ArrayBuffer), { type: 'array' });
+                    const wb = xlsx.read(new Uint8Array(e.target?.result as ArrayBuffer), { type: 'array', cellDates: true });
                     processData(xlsx.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]), file.name);
                 } catch { setErrorItem('Erro ao processar Excel.'); }
                 finally { setIsLoading(false); }
