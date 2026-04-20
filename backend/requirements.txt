@@ -5,7 +5,11 @@ pandas==2.2.3
 numpy==1.26.4
 statsmodels==0.14.4
 scipy==1.14.1
-xgboost==2.1.1
-lightgbm==4.5.0
+scikit-learn==1.5.2
 python-dateutil==2.9.0
 openai==1.51.0
+slowapi==0.1.9
+
+#── Sktime + dependências de forecasting ─────────────────────
+sktime==0.40.1
+pmdarima==2.0.4        # necessário para sktime ARIMA e AutoARIMA

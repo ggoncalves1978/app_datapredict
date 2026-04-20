@@ -64,6 +64,15 @@ export interface ForecastData {
     test_size: number;
 }
 
+export interface DiagnosticsState {
+    transformations: any | null;
+    distribution:    any | null;
+    structuralBreaks: any | null;
+    outliers:        any | null;
+    residuals:       any | null;
+    entropy:         any | null;
+}
+
 interface DataState {
     dataset: TimeSeriesDataPoint[];
     fileName: string | null;
@@ -76,6 +85,7 @@ interface DataState {
     correlogram: CorrelogramData | null;
     normality: NormalityData | null;
     forecast: ForecastData | null;
+    diagnostics: DiagnosticsState;
     setDataset: (data: TimeSeriesDataPoint[], fileName: string) => void;
     setSecondaryDataset: (data: TimeSeriesDataPoint[], fileName: string) => void;
     clearDataset: () => void;
@@ -87,7 +97,18 @@ interface DataState {
     setCorrelogram: (data: CorrelogramData | null) => void;
     setNormality: (data: NormalityData | null) => void;
     setForecast: (data: ForecastData | null) => void;
+    setDiagnostic: (key: keyof DiagnosticsState, data: any) => void;
+    clearDiagnostics: () => void;
 }
+
+const EMPTY_DIAGNOSTICS: DiagnosticsState = {
+    transformations:  null,
+    distribution:     null,
+    structuralBreaks: null,
+    outliers:         null,
+    residuals:        null,
+    entropy:          null,
+};
 
 export const useDataStore = create<DataState>((set) => ({
     dataset: [],
@@ -101,9 +122,10 @@ export const useDataStore = create<DataState>((set) => ({
     correlogram: null,
     normality: null,
     forecast: null,
-    setDataset: (data, fileName) => set({ dataset: data, fileName, stats: null, decomposition: null, stationarity: null, correlogram: null, normality: null, forecast: null }),
+    diagnostics: { ...EMPTY_DIAGNOSTICS },
+    setDataset: (data, fileName) => set({ dataset: data, fileName, stats: null, decomposition: null, stationarity: null, correlogram: null, normality: null, forecast: null, diagnostics: { ...EMPTY_DIAGNOSTICS } }),
     setSecondaryDataset: (data, fileName) => set({ secondaryDataset: data, secondaryFileName: fileName }),
-    clearDataset: () => set({ dataset: [], fileName: null, stats: null, decomposition: null, stationarity: null, correlogram: null, normality: null, forecast: null, secondaryDataset: [], secondaryFileName: null }),
+    clearDataset: () => set({ dataset: [], fileName: null, stats: null, decomposition: null, stationarity: null, correlogram: null, normality: null, forecast: null, secondaryDataset: [], secondaryFileName: null, diagnostics: { ...EMPTY_DIAGNOSTICS } }),
     clearSecondaryDataset: () => set({ secondaryDataset: [], secondaryFileName: null }),
     setIsLoading: (status) => set({ isLoading: status }),
     setStats: (stats) => set({ stats }),
@@ -112,5 +134,7 @@ export const useDataStore = create<DataState>((set) => ({
     setCorrelogram: (correlogram) => set({ correlogram }),
     setNormality: (normality) => set({ normality }),
     setForecast: (forecast) => set({ forecast }),
+    setDiagnostic: (key, data) => set((s) => ({ diagnostics: { ...s.diagnostics, [key]: data } })),
+    clearDiagnostics: () => set({ diagnostics: { ...EMPTY_DIAGNOSTICS } }),
 }));
 

@@ -6,6 +6,7 @@ import { Stationarity } from './pages/Stationarity';
 import { Correlations } from './pages/Correlations';
 import { Comparison } from './pages/Comparison';
 import { Forecast } from './pages/Forecast';
+import { Diagnostics } from './pages/Diagnostics';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="/correlations" element={<Correlations />} />
           <Route path="/comparison" element={<Comparison />} />
           <Route path="/forecast" element={<Forecast />} />
+          <Route path="/diagnostics" element={<Diagnostics />} />
           <Route path="*" element={
             <div className="flex items-center justify-center h-[60vh] text-slate-400 flex-col">
               <h2 className="text-2xl font-bold mb-2">Página em Construção</h2>

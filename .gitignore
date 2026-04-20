@@ -1,1 +1,22 @@
-backend/venv/ 
+# Python
+backend/venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Environment / secrets
+.env.local
+.env.*.local
+.env
+
+# Claude Code internals
+*.skill
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db

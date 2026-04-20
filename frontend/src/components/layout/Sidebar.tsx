@@ -1,16 +1,17 @@
 import React from 'react';
 import {
-    Home, LineChart, Activity, Layers, PlayCircle, Share2, Zap
+    Home, LineChart, Activity, Layers, PlayCircle, Share2, Zap, FlaskConical
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const navItems = [
-    { name: 'Visão Geral', path: '/', icon: Home },
-    { name: 'Tend. & Sazonalidade', path: '/trend', icon: LineChart },
-    { name: 'Estacionariedade', path: '/stationarity', icon: Activity },
-    { name: 'Correlações', path: '/correlations', icon: Share2 },
-    { name: 'Comparação', path: '/comparison', icon: Layers },
-    { name: 'Forecast Predict', path: '/forecast', icon: PlayCircle },
+    { name: 'Visão Geral',          path: '/',            icon: Home },
+    { name: 'Tend. & Sazonalidade', path: '/trend',       icon: LineChart },
+    { name: 'Estacionariedade',     path: '/stationarity', icon: Activity },
+    { name: 'Correlações',          path: '/correlations', icon: Share2 },
+    { name: 'Comparação',           path: '/comparison',   icon: Layers },
+    { name: 'Diagnósticos',         path: '/diagnostics',  icon: FlaskConical },
+    { name: 'Forecast Predict',     path: '/forecast',     icon: PlayCircle },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -77,7 +78,7 @@ export const Sidebar: React.FC = () => {
                     </div>
                     <div className="min-w-0">
                         <p className="text-xs font-semibold truncate" style={{ color: 'var(--text-primary)' }}>Gabriel D.</p>
-                        <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>v1.0 · Sprint 5</p>
+                        <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>v1.2 · Sprint 6</p>
                     </div>
                 </div>
             </div>
