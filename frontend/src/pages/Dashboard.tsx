@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { FileDropzone } from '../components/upload/FileDropzone';
+import { StockPicker } from '../components/upload/StockPicker';
 import { useDataStore } from '../store/useDataStore';
-import { Activity, Database, TrendingUp, TrendingDown, BarChart3, Hash } from 'lucide-react';
+import {
+    Activity, Database, TrendingUp, TrendingDown, BarChart3,
+    Hash, UploadCloud, LineChart,
+} from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import api from '../api';
 
@@ -36,9 +40,12 @@ const StatCard: React.FC<{
     </div>
 );
 
+type InputTab = 'upload' | 'bolsa';
+
 export const Dashboard: React.FC = () => {
     const { dataset, fileName, clearDataset, stats, setStats } = useDataStore();
     const [loadingStats, setLoadingStats] = useState(false);
+    const [activeTab,    setActiveTab]    = useState<InputTab>('upload');
 
     useEffect(() => {
         if (dataset.length > 0 && !stats && !loadingStats) {
@@ -52,27 +59,80 @@ export const Dashboard: React.FC = () => {
 
     const hasData = dataset.length > 0;
 
+    const tabStyle = (active: boolean): React.CSSProperties => ({
+        background:  active ? 'linear-gradient(135deg, rgba(124,58,237,0.2), rgba(79,70,229,0.1))' : 'transparent',
+        border:      active ? '1px solid rgba(124,58,237,0.35)' : '1px solid transparent',
+        color:       active ? 'var(--text-primary)' : 'var(--text-muted)',
+        borderRadius: '12px',
+        cursor:      'pointer',
+        transition:  'all 0.2s',
+        fontWeight:  active ? 600 : 400,
+    });
+
     return (
         <div className="space-y-6 animate-fadeup pb-10">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Visão Geral</h1>
                     <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {hasData ? `Dataset ativo: ${fileName}` : 'Faça upload de uma série temporal para iniciar.'}
+                        {hasData ? `Dataset ativo: ${fileName}` : 'Faça upload de um arquivo ou busque um ativo da bolsa para iniciar.'}
                     </p>
                 </div>
-                <div className="flex gap-2.5">
-                    {hasData && (
-                        <button onClick={clearDataset}
-                            className="btn-gradient flex items-center gap-2 px-5 py-2 text-sm rounded-xl cursor-pointer">
-                            + Nova Análise
-                        </button>
-                    )}
-                </div>
+                {hasData && (
+                    <button onClick={clearDataset}
+                        className="btn-gradient flex items-center gap-2 px-5 py-2 text-sm rounded-xl cursor-pointer">
+                        + Nova Análise
+                    </button>
+                )}
             </div>
 
             {!hasData ? (
-                <FileDropzone />
+                <div className="space-y-4">
+                    {/* Tab switcher */}
+                    <div className="flex gap-1 p-1 rounded-2xl"
+                        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', width: 'fit-content' }}>
+                        <button
+                            onClick={() => setActiveTab('upload')}
+                            className="flex items-center gap-2 px-5 py-2.5 text-sm rounded-xl"
+                            style={tabStyle(activeTab === 'upload')}
+                        >
+                            <UploadCloud size={15} style={{ color: activeTab === 'upload' ? '#a78bfa' : 'var(--text-faint)' }} />
+                            Upload CSV / Excel
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('bolsa')}
+                            className="flex items-center gap-2 px-5 py-2.5 text-sm rounded-xl"
+                            style={tabStyle(activeTab === 'bolsa')}
+                        >
+                            <LineChart size={15} style={{ color: activeTab === 'bolsa' ? '#a78bfa' : 'var(--text-faint)' }} />
+                            Bolsa de Valores
+                        </button>
+                    </div>
+
+                    {/* Tab content */}
+                    {activeTab === 'upload' ? (
+                        <FileDropzone />
+                    ) : (
+                        <div className="p-6 rounded-2xl"
+                            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                            <div className="flex items-center gap-3 mb-5">
+                                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                                    style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.22)' }}>
+                                    <LineChart className="w-4 h-4 text-violet-400" />
+                                </div>
+                                <div>
+                                    <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                        Séries Temporais de Ativos
+                                    </p>
+                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                        Preços de fechamento via <strong className="text-violet-400">yfinance</strong> · B3 · NYSE · NASDAQ · Cripto
+                                    </p>
+                                </div>
+                            </div>
+                            <StockPicker />
+                        </div>
+                    )}
+                </div>
             ) : (
                 <>
                     {/* Banner info dataset */}
@@ -118,24 +178,28 @@ export const Dashboard: React.FC = () => {
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                                    <XAxis 
-                                        dataKey="periodo" 
-                                        tick={{ fill: 'var(--text-muted)', fontSize: 11 }} 
-                                        tickMargin={10} 
-                                        minTickGap={40} 
-                                        axisLine={false} 
+                                    <XAxis
+                                        dataKey="periodo"
+                                        tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                                        tickMargin={10}
+                                        minTickGap={40}
+                                        axisLine={false}
                                         tickLine={false}
                                         tickFormatter={v => {
                                             if (!v || typeof v !== 'string') return v;
                                             const parts = v.split('-');
-                                            if (parts.length === 3) return `${parts[2]}/${parts[1]}`; // DD/MM (simplificado)
-                                            if (parts.length === 2) return `${parts[1]}/${parts[0]}`; // MM/YYYY
+                                            if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+                                            if (parts.length === 2) return `${parts[1]}/${parts[0]}`;
                                             return v;
                                         }}
                                     />
-                                    <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false}
-                                        tickFormatter={v => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v)} />
-                                    <Tooltip 
+                                    <YAxis
+                                        tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tickFormatter={v => new Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v)}
+                                    />
+                                    <Tooltip
                                         labelFormatter={v => {
                                             if (!v || typeof v !== 'string') return v;
                                             const parts = v.split('-');
@@ -143,9 +207,18 @@ export const Dashboard: React.FC = () => {
                                             if (parts.length === 2) return `${parts[1]}/${parts[0]}`;
                                             return v;
                                         }}
-                                        contentStyle={{ background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: '12px', color: 'var(--text-primary)', fontSize: '12px' }} 
+                                        contentStyle={{ background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: '12px', color: 'var(--text-primary)', fontSize: '12px' }}
                                     />
-                                    <Area type="monotone" dataKey="valor" name="Valor" stroke="#7c3aed" strokeWidth={2} fill="url(#grad-primary)" dot={false} activeDot={{ r: 5, fill: '#7c3aed', strokeWidth: 2, stroke: 'white' }} />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="valor"
+                                        name="Valor"
+                                        stroke="#7c3aed"
+                                        strokeWidth={2}
+                                        fill="url(#grad-primary)"
+                                        dot={false}
+                                        activeDot={{ r: 5, fill: '#7c3aed', strokeWidth: 2, stroke: 'white' }}
+                                    />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>

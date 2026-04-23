@@ -16,13 +16,15 @@ const MEDALS = [
     { icon: Award,    accent: '#d97706', bg: 'rgba(217,119,6,0.06)',   border: 'rgba(217,119,6,0.15)',  label: '🥉 3° Lugar' },
     { icon: Activity, accent: '#6366f1', bg: 'rgba(99,102,241,0.06)',  border: 'rgba(99,102,241,0.15)', label: '🏅 4° Lugar' },
     { icon: Activity, accent: '#ef4444', bg: 'rgba(239,68,68,0.06)',   border: 'rgba(239,68,68,0.15)',  label: '🏅 5° Lugar' },
+    { icon: Activity, accent: '#a78bfa', bg: 'rgba(167,139,250,0.06)', border: 'rgba(167,139,250,0.15)', label: '🏅 6° Lugar' },
 ];
 
 const MODEL_DESCRIPTIONS: Record<string, string> = {
-    'Média Móvel':  'Baseline: média dos últimos N períodos.',
-    'Holt-Winters': 'Suavização Exponencial com tendência e sazonalidade.',
-    'Theta':        'Método Theta clássico — vencedor da M3 Competition.',
-    'AutoARIMA':    'ARIMA com seleção automática de parâmetros via AIC.',
+    'Média Móvel':      'Baseline: média dos últimos N períodos.',
+    'Holt-Winters':     'Suavização Exponencial com tendência e sazonalidade.',
+    'Theta':            'Método Theta clássico — vencedor da M3 Competition.',
+    'AutoARIMA':        'ARIMA com seleção automática de parâmetros via AIC.',
+    'Regressão Linear': 'OLS: ŷ = β₀ + β₁·t — tendência linear simples.',
 };
 
 const getModelDesc = (name: string) => {
@@ -122,7 +124,7 @@ export const Forecast = () => {
                 </h1>
                 <p className="text-sm mt-1" style={M}>
                     Motor de previsão via <strong className="text-violet-400">sktime</strong> —{' '}
-                    Média Móvel · Holt-Winters · ARIMA/SARIMAX · AutoARIMA · Theta
+                    Média Móvel · Holt-Winters · ARIMA/SARIMAX · AutoARIMA · Theta · Regressão Linear
                 </p>
             </div>
 
@@ -256,7 +258,7 @@ export const Forecast = () => {
                 >
                     {loading
                         ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Treinando modelos...</>
-                        : <><PlayCircle size={16} /> Executar Forecast (5 modelos)</>}
+                        : <><PlayCircle size={16} /> Executar Forecast (6 modelos)</>}
                 </button>
             </div>
 
@@ -269,7 +271,7 @@ export const Forecast = () => {
                         Treinando 5 modelos via sktime…
                     </p>
                     <div className="flex flex-wrap justify-center gap-2">
-                        {['Média Móvel', 'Holt-Winters', 'ARIMA/SARIMAX', 'AutoARIMA', 'Theta'].map(m => (
+                        {['Média Móvel', 'Holt-Winters', 'ARIMA/SARIMAX', 'AutoARIMA', 'Theta', 'Reg. Linear'].map(m => (
                             <span key={m} className="px-3 py-1 rounded-full text-xs animate-pulse"
                                 style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.2)', color: '#a78bfa' }}>
                                 {m}
@@ -306,7 +308,7 @@ export const Forecast = () => {
                             </span>
                         </p>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
                             {forecast.models.map((model: any, i: number) => {
                                 const medal = MEDALS[i] || MEDALS[4];
                                 const MIcon = medal.icon;

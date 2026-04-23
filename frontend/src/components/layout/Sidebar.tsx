@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    Home, LineChart, Activity, Layers, PlayCircle, Share2, Zap, FlaskConical
+    Home, LineChart, Activity, Layers, PlayCircle, Share2, Zap, FlaskConical, TrendingUp
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
@@ -11,6 +11,7 @@ const navItems = [
     { name: 'Correlações',          path: '/correlations', icon: Share2 },
     { name: 'Comparação',           path: '/comparison',   icon: Layers },
     { name: 'Diagnósticos',         path: '/diagnostics',  icon: FlaskConical },
+    { name: 'Regressão Linear',     path: '/regression',   icon: TrendingUp },
     { name: 'Forecast Predict',     path: '/forecast',     icon: PlayCircle },
 ];
 

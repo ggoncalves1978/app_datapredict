@@ -323,6 +323,38 @@ def _safe_predict(forecaster, fh_arr) -> np.ndarray:
     return np.array(pred, dtype=float)
 
 
+# ── Modelo 0: Regressão Linear ───────────────────────────────
+def _train_linear_regression(train: np.ndarray, test: np.ndarray, horizon: int):
+    """Regressão linear simples OLS: ŷ = β₀ + β₁·t"""
+    try:
+        n_train = len(train)
+        x_train = np.arange(n_train, dtype=float)
+        X_train = np.column_stack([np.ones(n_train), x_train])
+        beta, _, _, _ = np.linalg.lstsq(X_train, train, rcond=None)
+        intercept, slope = float(beta[0]), float(beta[1])
+
+        x_test = np.arange(n_train, n_train + len(test), dtype=float)
+        preds  = intercept + slope * x_test
+        mape   = _mape(test, preds)
+        bias   = _bias(test, preds)
+
+        n_full = n_train + len(test)
+        full   = np.concatenate([train, test])
+        x_full = np.arange(n_full, dtype=float)
+        X_full = np.column_stack([np.ones(n_full), x_full])
+        beta_f, _, _, _ = np.linalg.lstsq(X_full, full, rcond=None)
+        b0, b1 = float(beta_f[0]), float(beta_f[1])
+
+        x_fc     = np.arange(n_full, n_full + horizon, dtype=float)
+        fc_vals  = (b0 + b1 * x_fc).tolist()
+        residuals = full - (b0 + b1 * x_full)
+        lower, upper = _interval_from_residuals(fc_vals, residuals)
+        return mape, bias, fc_vals, lower, upper
+    except Exception as e:
+        print(f"[LinReg] Erro: {e}")
+        return float('inf'), float('nan'), [], [], []
+
+
 # ── Modelo 1: Média Móvel (Naive) ────────────────────────────
 def _train_naive(train: np.ndarray, test: np.ndarray, horizon: int, window: int = 3):
     try:
@@ -610,12 +642,17 @@ def run_forecast(request: ForecastRequest):
         f"ARIMA({request.arima_p},{request.arima_d},{request.arima_q})"
     )
 
+    lr_mape,  lr_bias,  lr_fc,  lr_low,  lr_up  = _train_linear_regression(
+        train, test, request.horizon
+    )
+
     candidates = [
-        {"name": "Média Móvel",   "mape": mm_mape,  "bias": mm_bias,  "forecast": mm_fc,  "lower": mm_low,  "upper": mm_up},
-        {"name": "Holt-Winters",  "mape": hw_mape,  "bias": hw_bias,  "forecast": hw_fc,  "lower": hw_low,  "upper": hw_up},
-        {"name": arima_label,     "mape": ar_mape,  "bias": ar_bias,  "forecast": ar_fc,  "lower": ar_low,  "upper": ar_up},
-        {"name": autoarima_label, "mape": aar_mape, "bias": aar_bias, "forecast": aar_fc, "lower": aar_low, "upper": aar_up},
-        {"name": "Theta",         "mape": th_mape,  "bias": th_bias,  "forecast": th_fc,  "lower": th_low,  "upper": th_up},
+        {"name": "Média Móvel",      "mape": mm_mape,  "bias": mm_bias,  "forecast": mm_fc,  "lower": mm_low,  "upper": mm_up},
+        {"name": "Holt-Winters",     "mape": hw_mape,  "bias": hw_bias,  "forecast": hw_fc,  "lower": hw_low,  "upper": hw_up},
+        {"name": arima_label,        "mape": ar_mape,  "bias": ar_bias,  "forecast": ar_fc,  "lower": ar_low,  "upper": ar_up},
+        {"name": autoarima_label,    "mape": aar_mape, "bias": aar_bias, "forecast": aar_fc, "lower": aar_low, "upper": aar_up},
+        {"name": "Theta",            "mape": th_mape,  "bias": th_bias,  "forecast": th_fc,  "lower": th_low,  "upper": th_up},
+        {"name": "Regressão Linear", "mape": lr_mape,  "bias": lr_bias,  "forecast": lr_fc,  "lower": lr_low,  "upper": lr_up},
     ]
 
     ranked = sorted(candidates, key=lambda m: m["mape"])
@@ -664,6 +701,141 @@ def run_forecast(request: ForecastRequest):
         "periodos_historico": df['periodo'].tolist(),
         "periodos_forecast":  future_periods,
         "test_size":          request.test_size,
+    }
+
+
+# ═══════════════════════════════════════════════════════════
+# Dados de Bolsa via yfinance
+# ═══════════════════════════════════════════════════════════
+
+class StockRequest(BaseModel):
+    ticker:   str
+    period:   str = "2y"   # 1mo 3mo 6mo 1y 2y 5y 10y ytd max
+    interval: str = "1mo"  # 1d 1wk 1mo
+
+
+@app.post("/api/stock")
+def fetch_stock(request: StockRequest):
+    try:
+        import yfinance as yf
+
+        ticker_str = request.ticker.upper().strip()
+        t    = yf.Ticker(ticker_str)
+        hist = t.history(period=request.period, interval=request.interval, auto_adjust=True)
+
+        if hist.empty:
+            return {"error": f"Nenhum dado encontrado para '{ticker_str}'. Verifique o símbolo."}
+
+        info: dict = {}
+        try:
+            info = t.info or {}
+        except Exception:
+            pass
+
+        company  = info.get("longName") or info.get("shortName") or ticker_str
+        currency = info.get("currency", "")
+        exchange = info.get("exchange", "")
+
+        hist = hist.reset_index()
+        date_col = "Date" if "Date" in hist.columns else "Datetime"
+
+        dataset = []
+        for _, row in hist.iterrows():
+            dt  = row[date_col]
+            val = float(row.get("Close", float("nan")))
+            if pd.isna(val) or not np.isfinite(val):
+                continue
+            if hasattr(dt, "strftime"):
+                periodo = dt.strftime("%Y-%m-%d") if request.interval in ("1d", "1wk") else dt.strftime("%Y-%m")
+            else:
+                periodo = str(dt)[:10]
+            dataset.append({
+                "codigo":    ticker_str,
+                "descricao": company,
+                "periodo":   periodo,
+                "valor":     round(val, 4),
+            })
+
+        if not dataset:
+            return {"error": "Dados inválidos retornados pela API. Tente outro período ou intervalo."}
+
+        return {
+            "dataset":      dataset,
+            "ticker":       ticker_str,
+            "company":      company,
+            "currency":     currency,
+            "exchange":     exchange,
+            "total_points": len(dataset),
+            "period":       request.period,
+            "interval":     request.interval,
+        }
+
+    except Exception as e:
+        return {"error": f"Erro ao buscar dados: {str(e)}"}
+
+
+# ═══════════════════════════════════════════════════════════
+# Regressão Linear Dedicada
+# ═══════════════════════════════════════════════════════════
+
+class RegressionRequest(BaseModel):
+    dataset: List[TimeSeriesDataPoint]
+    horizon: int = 12
+
+
+@app.post("/api/regression")
+def run_regression(request: RegressionRequest):
+    data = [item.dict() for item in request.dataset]
+    df   = pd.DataFrame(data)
+    df['valor'] = pd.to_numeric(df['valor'], errors='coerce')
+    df = df.dropna(subset=['valor'])
+
+    if len(df) < 3:
+        return {"error": "Série muito curta para regressão linear (mínimo 3 pontos)."}
+
+    values = df['valor'].values.astype(float)
+    n      = len(values)
+    x      = np.arange(n, dtype=float)
+    X      = np.column_stack([np.ones(n), x])
+
+    beta, _, _, _ = np.linalg.lstsq(X, values, rcond=None)
+    intercept     = float(beta[0])
+    slope         = float(beta[1])
+
+    fitted    = intercept + slope * x
+    residuals = values - fitted
+
+    ss_res    = float(np.sum(residuals ** 2))
+    ss_tot    = float(np.sum((values - np.mean(values)) ** 2))
+    r_squared = float(1.0 - ss_res / ss_tot) if ss_tot != 0 else 0.0
+    rmse      = float(np.sqrt(np.mean(residuals ** 2)))
+    mae       = float(np.mean(np.abs(residuals)))
+    mask      = values != 0
+    mape      = float(np.mean(np.abs(residuals[mask] / values[mask])) * 100) if mask.sum() > 0 else 9999.99
+
+    future_periods = _generate_future_periods(df['periodo'].iloc[-1], request.horizon)
+    x_fc           = np.arange(n, n + request.horizon, dtype=float)
+    forecast_line  = (intercept + slope * x_fc).tolist()
+
+    res_std = float(np.std(residuals))
+    lower   = [v - 1.28 * res_std for v in forecast_line]
+    upper   = [v + 1.28 * res_std for v in forecast_line]
+
+    return {
+        "intercept":          round(intercept, 4),
+        "slope":              round(slope, 4),
+        "r_squared":          round(r_squared, 4),
+        "rmse":               round(rmse, 4),
+        "mae":                round(mae, 4),
+        "mape":               round(mape, 2),
+        "fitted":             fitted.tolist(),
+        "residuals":          residuals.tolist(),
+        "historico":          values.tolist(),
+        "periodos_historico": df['periodo'].tolist(),
+        "forecast_line":      forecast_line,
+        "lower":              lower,
+        "upper":              upper,
+        "periodos_forecast":  future_periods,
     }
 
 
