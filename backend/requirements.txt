@@ -12,4 +12,6 @@ slowapi==0.1.9
 
 #── Sktime + dependências de forecasting ─────────────────────
 sktime==0.40.1
-pmdarima==2.0.4        # necessário para sktime ARIMA e AutoARIMA
+
+#── Dados de mercado ─────────────────────────────────────────
+yfinance==1.3.0
